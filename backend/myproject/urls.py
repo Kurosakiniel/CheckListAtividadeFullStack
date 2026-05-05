@@ -6,9 +6,18 @@ from rest_framework.routers import DefaultRouter
 from myapp.api.v1.viewsets import AtividadeViewSet
 from django.urls import path, include
 
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/', include('myapp.api.v1.urls')),
+    path('api/v1/', include('myapp.api.v1.router')),
+
+    # 🔐 JWT
+    path('api/v1/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 if settings.DEBUG:
     urlpatterns += static(

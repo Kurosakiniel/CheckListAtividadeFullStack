@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions
-from models import Atividade
-from serializers import AtividadeSerializer
+from myapp.models import Atividade
+from myapp.api.v1.serializers import AtividadeSerializer
 
 class AtividadeViewSet(viewsets.ModelViewSet):
     serializer_class = AtividadeSerializer
