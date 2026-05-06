@@ -1,105 +1,54 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import type { Atividade } from "../lib/types/types";
+import { api } from "../lib/api";
 
 export function ActivitiesActive() {
   const navigate = useNavigate();
-  // Lista de atividades que virão da API
+
   const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-    async function concluirAtividade(id: number) {
-        try {
-            const token = localStorage.getItem("access");
-            const res = await fetch(`http://localhost:8000/api/v1/atividades/${id}/`, {
-                method: "PATCH",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ concluida: true }), // atualiza o campo concluida para true
-            });
-
-            if (!res.ok) {
-                alert("Erro ao concluir atividade. Tente novamente.");
-                return;
-            }
-
-            // Atualiza a lista local removendo a atividade concluída e redirecionando para a tela de atividades concluídas
-            setAtividades(prev => prev.filter(atividade => atividade.id !== id));
-            navigate("/atividades/ativas");
-
-        } catch (error) {
-            alert("Erro ao conectar com o servidor.");
-        }
-    }
-
   useEffect(() => {
-
     async function buscarAtividades() {
         try {
-            const token = localStorage.getItem("access");
-            const res = await fetch("http://localhost:8000/api/v1/atividades/", {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (res.status === 401) {
-                localStorage.removeItem("access");
-                localStorage.removeItem("refresh");
-                navigate("/");
-                return;
-            }
-
-            if (!res.ok) {
-                setErro("Erro ao buscar atividades. Tente novamente.");
-                return;
-            }
-
-            const dados = await res.json();
-            const ativas = dados.results.filter(
-                (atividade: Atividade) => atividade.concluida === false);
-            setAtividades(ativas);
-
-            
-
+        // Agora pedimos explicitamente apenas as NÃO concluídas para o Django
+        const res = await api.get("/atividades/?concluida=false");
+        
+        // Como o Django usa paginação, os dados estão em res.data.results
+        const dados = res.data.results || [];
+        
+        setAtividades(dados);
         } catch (error) {
-            setErro("Não foi possível conectar ao servidor.");
+        setErro("Erro ao carregar dados.");
         } finally {
-            setCarregando(false);
+        setCarregando(false);
         }
-}
+    }
+    buscarAtividades();
+   }, []);
+   
+  async function concluirAtividade(id: number) {
+    try {
+      await api.patch(`/atividades/${id}/`, {
+        concluida: true,
+      });
 
-
-    buscarAtividades(); 
-
-  }, []);
-
+      // Remove da tela instantaneamente
+      setAtividades((anterior) => anterior.filter((a) => a.id !== id));
+    } catch (error) {
+      alert("Erro ao concluir atividade.");
+    }
+  }
 
   if (carregando) {
     return (
       <main className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <p className="text-gray-500 text-lg animate-pulse">Carregando...</p>
-      </main>
-    );
-  }
-
-  if (erro) {
-    return (
-      <main className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
         <div className="text-center">
-          <p className="text-red-500 text-lg mb-4">{erro}</p>
-          <button
-            onClick={() => navigate("/atividades")}
-            className="text-gray-600 underline"
-          >
-            Voltar para o início
-          </button>
+          <div className="w-10 h-10 border-4 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500 text-lg">Buscando atividades...</p>
         </div>
       </main>
     );
@@ -107,97 +56,84 @@ export function ActivitiesActive() {
 
   return (
     <main className="min-h-screen bg-gray-100">
-
-      {/* Header da página */}
-      <header className="h-14 sm:h-16 bg-gray-300 flex items-center gap-3 px-4 shadow">
+      {/* Header Fixo */}
+      <header className="h-16 bg-white border-b flex items-center justify-between px-4 sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/home")}
+            className="p-2 hover:bg-gray-100 rounded-full transition"
+          >
+            <ArrowLeft size={24} className="text-gray-700" />
+          </button>
+          <h1 className="text-xl font-bold text-gray-800">Atividades Ativas</h1>
+        </div>
         
-        {/* Botão de voltar para a Home */}
-        <button onClick={() => navigate("/atividades")} className="p-1">
-          <ArrowLeft size={28} className="text-black" />
+        <button
+          onClick={() => navigate("/atividades/new")}
+          className="p-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition flex items-center gap-2 px-4"
+        >
+          <Plus size={20} />
+          <span className="hidden sm:inline">Nova</span>
         </button>
-
-        <h1 className="text-lg font-semibold text-gray-800">
-          Atividades Ativas
-        </h1>
       </header>
 
-      {/* Área do conteúdo */}
-      <section className="p-4 sm:p-6">
-
-        {atividades.length === 0 ? (
-          <div className="flex flex-col items-center justify-center mt-20 text-gray-400">
-            <p className="text-xl">Nenhuma atividade ativa no momento.</p>
+      <section className="p-4 sm:p-6 max-w-2xl mx-auto w-full">
+        {erro ? (
+          <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-red-700 text-center">
+            {erro}
           </div>
-
+        ) : atividades.length === 0 ? (
+          <div className="flex flex-col items-center justify-center mt-20 text-gray-500">
+            <p className="text-xl font-medium">Nenhuma atividade ativa!</p>
+            <p className="text-sm">As 38 atividades do banco podem estar concluídas.</p>
+            <button
+              onClick={() => navigate("/atividades/new")}
+              className="mt-4 text-blue-600 font-semibold hover:underline"
+            >
+              Criar nova atividade agora
+            </button>
+          </div>
         ) : (
-
-          <div className="flex flex-col gap-4 max-w-2xl mx-auto w-full">
-
-            {/* .map() percorre o array e transforma cada item em um card */}
+          <div className="flex flex-col gap-4">
             {atividades.map((atividade) => (
-
-              // O React usa "key" para identificar cada item
               <div
                 key={atividade.id}
-                className="bg-white rounded-xl shadow p-4 flex flex-col gap-2"
+                className="bg-white rounded-2xl shadow-sm border p-5 flex flex-col gap-3 hover:shadow-md transition"
               >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-800">
-                    {atividade.nome}
-                  </h2>
-                    {/* Dificuldade com cores */}
-                  <span className={`
-                    text-xs font-medium px-2 py-1 rounded-full
-                    ${atividade.dificuldade === "facil"
-                      ? "bg-green-100 text-green-700"   
-                      : atividade.dificuldade === "medio"
-                      ? "bg-yellow-100 text-yellow-700" 
-                      : "bg-red-100 text-red-700"      
-                    }
-                  `}>
-                    {atividade.dificuldade.charAt(0).toUpperCase() + atividade.dificuldade.slice(1)}
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-800">{atividade.nome}</h2>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      {atividade.tipoDeAtividade}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase ${
+                    atividade.dificuldade === "facil" ? "bg-green-100 text-green-700" :
+                    atividade.dificuldade === "medio" ? "bg-yellow-100 text-yellow-700" :
+                    "bg-red-100 text-red-700"
+                  }`}>
+                    {atividade.dificuldade}
                   </span>
                 </div>
 
-                {/* Tipo da atividade */}
-                <p className="text-sm text-gray-500">{atividade.tipoDeAtividade}</p>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  {atividade.descricao}
+                </p>
 
-                {/* Descrição */}
-                <p className="text-sm text-gray-700">{atividade.descricao}</p>
-
-                {/* Botão para editar a atividade — navega passando o id na URL */}
-                <div className="flex gap-2 mt-2">
-                    <button
-                        onClick={() => navigate(`/atividades/${atividade.id}`)}
-                        className="
-                            flex-1
-                            text-sm text-gray-600
-                            bg-gray-300
-                            border border-gray-300
-                            py-2 rounded-lg
-                            hover:bg-gray-100
-                            transition
-                        "
-                    >
-                        Editar
-                    </button>
-
-                    <button
-                        onClick={() => concluirAtividade(atividade.id)}
-                        className="
-                            flex-1
-                            text-sm text-white
-                            bg-green-600
-                            py-2 rounded-lg
-                            hover:bg-green-700
-                            transition
-                        "
-                    >
-                        Concluir 
-                    </button>
-
+                <div className="flex gap-3 mt-2">
+                  <button
+                    onClick={() => navigate(`/atividades/${atividade.id}`)}
+                    className="flex-1 text-sm font-semibold text-gray-700 bg-gray-100 py-2.5 rounded-xl hover:bg-gray-200 transition"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => concluirAtividade(atividade.id)}
+                    className="flex-1 text-sm font-semibold text-white bg-green-600 py-2.5 rounded-xl hover:bg-green-700 transition"
+                  >
+                    Concluir
+                  </button>
                 </div>
-
               </div>
             ))}
           </div>

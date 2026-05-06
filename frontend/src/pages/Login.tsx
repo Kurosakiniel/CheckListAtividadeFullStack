@@ -5,6 +5,9 @@ import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import type { LoginData } from "../lib/types/types";
+import axios from "axios";
+import { useAuth } from "../contexts/AuthContext";
+
 
 const schema = yup.object({
   username: yup.string().required("Usuário obrigatório"),
@@ -14,6 +17,7 @@ const schema = yup.object({
 export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const {
     register,
@@ -23,37 +27,30 @@ export function Login() {
     resolver: yupResolver(schema),
   });
 
+
   async function handleLogin(data: LoginData) {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/token/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
+        const res = await axios.post(
+        "http://localhost:8000/api/v1/token/",
+        data
+        );
 
-      const json = await res.json();
+        const json = res.data;
 
-      if (!res.ok) {
+        login(json.access, json.refresh);
+
+        alert("Login realizado");
+
+        navigate("/home");
+    } catch (error: any) {
+        if (error.response) {
         alert("Usuário ou senha inválidos");
-        console.error(json);
-        return;
-      }
-
-      // salva os tokens
-      localStorage.setItem("access", json.access);
-      localStorage.setItem("refresh", json.refresh);
-
-      alert("Login realizado");
-
-      navigate("/atividades");
-    } catch (error) {
-      console.error(error);
-      alert("Erro ao conectar com o servidor");
+        } else {
+        alert("Erro ao conectar com o servidor");
+        }
     }
   }
-
+  
   return (
     <main className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm">

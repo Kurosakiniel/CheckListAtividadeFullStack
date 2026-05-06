@@ -1,10 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Menu, Plus, X } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 export function Home() {
   const [sidebarAberta, setSidebarAberta] = useState(false);
+
   const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  function handleLogout() {
+    logout();
+    navigate("/login");
+  }
 
   return (
     <main className="min-h-screen bg-gray-100 overflow-hidden">
@@ -14,7 +22,13 @@ export function Home() {
           <Menu size={32} className="text-black sm:w-9 sm:h-9" />
         </button>
 
-        <div className="w-11 h-11 sm:w-14 sm:h-14 bg-black rounded-full" />
+        {/* BOTÃO SAIR */}
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 text-white px-4 py-2 rounded-full text-sm hover:bg-red-600 transition"
+        >
+          Sair
+        </button>
       </header>
 
       {/* Fundo escuro */}
@@ -46,35 +60,19 @@ export function Home() {
           <button
             onClick={() => {
               setSidebarAberta(false);
-              navigate("/atividades/ativas");
+              navigate("/atividades");
             }}
-            className="
-              text-left px-4 py-3 rounded-xl
-              bg-gray-100
-              hover:bg-gray-300
-              hover:shadow-md
-              hover:scale-[1.02]
-              transition-all duration-200
-              font-medium
-            "
+            className="text-left px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-300 hover:shadow-md hover:scale-[1.02] transition-all duration-200 font-medium"
           >
             Atividades Ativas
           </button>
 
           <button
-            onClick={() => { 
+            onClick={() => {
               setSidebarAberta(false);
               navigate("/atividades/concluidas");
             }}
-            className="
-              text-left px-4 py-3 rounded-xl
-              bg-gray-100
-              hover:bg-gray-300
-              hover:shadow-md
-              hover:scale-[1.02]
-              transition-all duration-200
-              font-medium
-            "
+            className="text-left px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-300 hover:shadow-md hover:scale-[1.02] transition-all duration-200 font-medium"
           >
             Atividades Concluídas
           </button>
@@ -85,25 +83,14 @@ export function Home() {
       <section className="p-4 sm:p-6">
         <button
           onClick={() => navigate("/atividades/new")}
-          className="
-            w-full sm:w-auto
-            flex items-center justify-center sm:justify-start gap-3
-            bg-gray-200
-            px-4 sm:px-6 py-4
-            rounded-xl
-            hover:bg-gray-300
-            hover:shadow-md
-            hover:scale-[1.02]
-            transition-all duration-200
-    font-medium
-  "
->
-  <Plus size={32} className="sm:w-9 sm:h-9" />
+          className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-3 bg-gray-200 px-4 sm:px-6 py-4 rounded-xl hover:bg-gray-300 hover:shadow-md hover:scale-[1.02] transition-all duration-200 font-medium"
+        >
+          <Plus size={32} className="sm:w-9 sm:h-9" />
 
-  <span className="text-lg sm:text-2xl">
-    CRIAR ATIVIDADE
-  </span>
-</button>
+          <span className="text-lg sm:text-2xl">
+            CRIAR ATIVIDADE
+          </span>
+        </button>
       </section>
     </main>
   );

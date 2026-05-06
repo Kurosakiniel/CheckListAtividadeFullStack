@@ -1,9 +1,10 @@
 import { yupResolver } from "@hookform/resolvers/yup";
-import { useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import * as yup from "yup";
 import type { AtividadeFormData } from "../lib/types/types";
+import { api } from "../lib/api"; // Importando sua instância do Axios
 
 const schema = yup.object().shape({
   nome: yup.string().required("Nome da atividade obrigatório"),
@@ -16,46 +17,44 @@ function AtividadeFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [carregando, setCarregando] = useState(!!id);
-  const { register, handleSubmit, setValue, formState: { errors }, } = 
-  useForm<AtividadeFormData>({
+  
+  const { 
+    register, 
+    handleSubmit, 
+    setValue, 
+    formState: { errors },
+    reset 
+  } = useForm<AtividadeFormData>({
     resolver: yupResolver(schema),
   });
 
+  // --- BUSCAR DADOS (EDIÇÃO) ---
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      reset(); // Limpa o form se for uma nova atividade
+      return;
+    }
 
     async function carregarAtividade() {
       try {
-        const token = localStorage.getItem("access");
-        const res = await fetch(`http://localhost:8000/api/v1/atividades/${id}/`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
+        // O Axios já usa a baseURL e o interceptor anexa o Token automaticamente
+        const res = await api.get(`/atividades/${id}/`);
+        const dados = res.data;
 
-        if (res.status === 401) {
-          navigate("/login");
-          return; 
-        }
-
-        if (!res.ok) {
-          alert("Atividade não encontrada");
-          navigate("/atividades");
-          return;
-        }
-        
-        const dados = await res.json();
-
-
+        // Preenche os campos do formulário
         setValue("nome", dados.nome);
         setValue("tipoDeAtividade", dados.tipoDeAtividade);
         setValue("descricao", dados.descricao);
         setValue("dificuldade", dados.dificuldade);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error("Erro ao carregar atividade:", error);
-        alert("Erro ao carregar atividade. Tente novamente.");
+        
+        if (error.response?.status === 404) {
+          alert("Atividade não encontrada!");
+        } else {
+          alert("Erro ao conectar com o servidor.");
+        }
         navigate("/atividades");
       } finally {
         setCarregando(false);
@@ -63,185 +62,136 @@ function AtividadeFormPage() {
     }
 
     carregarAtividade();
-  }, [id]);
+  }, [id, setValue, navigate, reset]);
 
-  // Reutilizei essa porra toda aqui
-
+  // --- CRIAR OU EDITAR ---
   const onSubmit = async (data: AtividadeFormData) => {
     try {
-      const token = localStorage.getItem("access");
-      const url = id
-
-        ? `http://localhost:8000/api/v1/atividades/${id}/`
-        : "http://localhost:8000/api/v1/atividades/";
-
-      const method = id ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-         ...data,
-          concluida: false, // nova atividade sempre começa como ativa justamente para ser concluída depois.
-        }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        console.error("Erro na resposta:", error);
-        alert("Erro ao enviar dados. Verifique os campos e tente novamente.");
-        return;
-      }
-
-      alert(`Atividade ${id ? "atualizada" : "cadastrada"} com sucesso!`);
+      const payload = { ...data, concluida: false };
 
       if (id) {
-        navigate("/atividades/ativas"); 
-        navigate("/atividades");
+        // Fluxo de Edição (PUT)
+        await api.put(`/atividades/${id}/`, payload);
+        alert("Atividade atualizada com sucesso!");
+      } else {
+        // Fluxo de Criação (POST)
+        await api.post("/atividades/", payload);
+        alert("Atividade cadastrada com sucesso!");
       }
 
-    } catch (error) {
+      navigate("/atividades"); // Redireciona para a listagem
+    } catch (error: any) {
       console.error("Erro ao enviar dados:", error);
-      alert("Erro ao enviar dados. Tente novamente.");
+      alert(error.response?.data?.detail || "Erro ao salvar atividade. Verifique os campos.");
     }
   };
 
+  // --- DELETAR ---
   async function deletarAtividade() {
     const confirmacao = window.confirm("Tem certeza que deseja deletar esta atividade?");
     if (!confirmacao) return;
 
     try {
-      const token = localStorage.getItem("access");
-      const res = await fetch(`http://localhost:8000/api/v1/atividades/${id}/`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        alert("Erro ao deletar atividade. Tente novamente.");
-        return;
-      }
-
+      await api.delete(`/atividades/${id}/`);
       alert("Atividade deletada com sucesso!");
       navigate("/atividades");
-
     } catch (error) {
-      console.error("Erro ao deletar atividade:", error);
-      alert("Erro ao conectar com o servidor. Tente novamente.");
+      console.error("Erro ao deletar:", error);
+      alert("Erro ao deletar atividade.");
     }
   }
 
-   if (carregando) {
+  if (carregando) {
     return (
       <main className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
-        <p className="text-gray-600 text-lg">Carregando...</p>
+        <p className="text-gray-600 text-lg animate-pulse">Carregando dados...</p>
       </main>
     );
-  } 
+  }
 
   return (
-    <main className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+    <main className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-10">
       <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md">
         <h1 className="text-2xl font-semibold text-gray-700 text-center mb-6">
           {id ? "Editar Atividade" : "Nova Atividade"}
         </h1>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Campo Nome */}
           <div>
             <label className="block text-sm text-gray-600 mb-1">Nome</label>
             <input
               {...register("nome")}
               placeholder="Digite o nome da atividade"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none"
             />
-            {errors.nome && (
-              <p className="text-red-500 text-xs mt-1">{errors.nome.message}</p>
-            )}
+            {errors.nome && <p className="text-red-500 text-xs mt-1">{errors.nome.message}</p>}
           </div>
 
+          {/* Campo Tipo */}
           <div>
             <label className="block text-sm text-gray-600 mb-1">Tipo de Atividade</label>
             <input
               {...register("tipoDeAtividade")}
-              placeholder="Digite o tipo de atividade"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+              placeholder="Ex: Estudo, Trabalho, Exercício"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none"
             />
-            {errors.tipoDeAtividade && (
-              <p className="text-red-500 text-xs mt-1">{errors.tipoDeAtividade.message}</p>
-            )}
+            {errors.tipoDeAtividade && <p className="text-red-500 text-xs mt-1">{errors.tipoDeAtividade.message}</p>}
           </div>
 
+          {/* Campo Descrição */}
           <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              Descrição
-            </label>
+            <label className="block text-sm text-gray-600 mb-1">Descrição</label>
             <textarea
               {...register("descricao")}
-              rows={4}
-              placeholder="Descreva a atividade"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 resize-none"
+              rows={3}
+              placeholder="Descreva a atividade..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 outline-none resize-none"
             />
-            {errors.descricao && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.descricao.message}
-              </p>
-            )}
+            {errors.descricao && <p className="text-red-500 text-xs mt-1">{errors.descricao.message}</p>}
           </div>
 
+          {/* Campo Dificuldade */}
           <div>
             <p className="text-sm text-gray-600 mb-2">Dificuldade</p>
-
             <div className="flex gap-4">
               {["facil", "medio", "dificil"].map((nivel) => (
-                <label
-                  key={nivel}
-                  className="flex items-center gap-2 text-sm text-gray-700"
-                >
-                  <input
-                    type="radio"
-                    value={nivel}
-                    {...register("dificuldade")}
-                  />
+                <label key={nivel} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input type="radio" value={nivel} {...register("dificuldade")} className="accent-gray-700" />
                   {nivel.charAt(0).toUpperCase() + nivel.slice(1)}
                 </label>
               ))}
             </div>
+            {errors.dificuldade && <p className="text-red-500 text-xs mt-1">{errors.dificuldade.message}</p>}
+          </div>
 
-            {errors.dificuldade && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.dificuldade.message}
-              </p>
-            )}
-          </div>  
-
-          <button
-            type="submit"
-            className="block w-11/12 mx-auto bg-gray-700 text-white py-2 rounded-lg hover:bg-gray-800 transition"
-          >
-            {id ? "Atualizar" : "Cadastrar"}
-          </button>
-
-          {id && (
+          {/* Botões de Ação */}
+          <div className="flex flex-col gap-3 pt-4">
             <button
-              type="button"
-              onClick={deletarAtividade}
-              className="block w-11/12 mx-auto bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
+              type="submit"
+              className="w-full bg-gray-700 text-white py-2 rounded-lg hover:bg-gray-800 transition font-medium"
             >
-              Deletar
+              {id ? "Salvar Alterações" : "Cadastrar Atividade"}
             </button>
-          )}
 
-          <button
-            onClick={() => navigate(-1)}
-            type="button"
-            className="block w-11/12 mx-auto border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition"
-          >
-            Voltar
-          </button>
+            {id && (
+              <button
+                type="button"
+                onClick={deletarAtividade}
+                className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition font-medium"
+              >
+                Deletar Atividade
+              </button>
+            )}
+
+            <button
+              onClick={() => navigate(-1)}
+              type="button"
+              className="w-full border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition"
+            >
+              Voltar
+            </button>
+          </div>
         </form>
       </div>
     </main>

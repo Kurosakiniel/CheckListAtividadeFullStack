@@ -107,7 +107,7 @@ export function ActivitiesDone() {
     <main className="min-h-screen bg-gray-100">
 
       <header className="h-14 sm:h-16 bg-gray-300 flex items-center gap-3 px-4 shadow">
-        <button onClick={() => navigate("/atividades")} className="p-1">
+        <button onClick={() => navigate("/home")} className="p-1">
           <ArrowLeft size={28} className="text-black" />
         </button>
         <h1 className="text-lg font-semibold text-gray-800">
