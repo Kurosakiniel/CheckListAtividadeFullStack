@@ -1,5 +1,5 @@
 import { yupResolver } from "@hookform/resolvers/yup";
-import { useEffect } from "react";
+import { useEffect, useState} from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import * as yup from "yup";
@@ -7,7 +7,7 @@ import type { AtividadeFormData } from "../lib/types/types";
 
 const schema = yup.object().shape({
   nome: yup.string().required("Nome da atividade obrigatório"),
-  tipo: yup.string().required("Tipo obrigatório"),
+  tipoDeAtividade: yup.string().required("Tipo de atividade obrigatório"),
   descricao: yup.string().required("Descrição obrigatória"),
   dificuldade: yup.string().required("Dificuldade obrigatória"),
 });
@@ -15,20 +15,133 @@ const schema = yup.object().shape({
 function AtividadeFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<AtividadeFormData>({
+  const [carregando, setCarregando] = useState(!!id);
+  const { register, handleSubmit, setValue, formState: { errors }, } = 
+  useForm<AtividadeFormData>({
     resolver: yupResolver(schema),
   });
 
-  const onSubmit = (data: AtividadeFormData) => {
-    console.log("Dados:", data);
-    alert("Funcionou 😄");
+  useEffect(() => {
+    if (!id) return;
+
+    async function carregarAtividade() {
+      try {
+        const token = localStorage.getItem("access");
+        const res = await fetch(`http://localhost:8000/api/v1/atividades/${id}/`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+
+        if (res.status === 401) {
+          navigate("/login");
+          return; 
+        }
+
+        if (!res.ok) {
+          alert("Atividade não encontrada");
+          navigate("/atividades");
+          return;
+        }
+        
+        const dados = await res.json();
+
+
+        setValue("nome", dados.nome);
+        setValue("tipoDeAtividade", dados.tipoDeAtividade);
+        setValue("descricao", dados.descricao);
+        setValue("dificuldade", dados.dificuldade);
+
+      } catch (error) {
+        console.error("Erro ao carregar atividade:", error);
+        alert("Erro ao carregar atividade. Tente novamente.");
+        navigate("/atividades");
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    carregarAtividade();
+  }, [id]);
+
+  // Reutilizei essa porra toda aqui
+
+  const onSubmit = async (data: AtividadeFormData) => {
+    try {
+      const token = localStorage.getItem("access");
+      const url = id
+
+        ? `http://localhost:8000/api/v1/atividades/${id}/`
+        : "http://localhost:8000/api/v1/atividades/";
+
+      const method = id ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+         ...data,
+          concluida: false, // nova atividade sempre começa como ativa justamente para ser concluída depois.
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        console.error("Erro na resposta:", error);
+        alert("Erro ao enviar dados. Verifique os campos e tente novamente.");
+        return;
+      }
+
+      alert(`Atividade ${id ? "atualizada" : "cadastrada"} com sucesso!`);
+
+      if (id) {
+        navigate("/atividades/ativas"); 
+        navigate("/atividades");
+      }
+
+    } catch (error) {
+      console.error("Erro ao enviar dados:", error);
+      alert("Erro ao enviar dados. Tente novamente.");
+    }
   };
+
+  async function deletarAtividade() {
+    const confirmacao = window.confirm("Tem certeza que deseja deletar esta atividade?");
+    if (!confirmacao) return;
+
+    try {
+      const token = localStorage.getItem("access");
+      const res = await fetch(`http://localhost:8000/api/v1/atividades/${id}/`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        alert("Erro ao deletar atividade. Tente novamente.");
+        return;
+      }
+
+      alert("Atividade deletada com sucesso!");
+      navigate("/atividades");
+
+    } catch (error) {
+      console.error("Erro ao deletar atividade:", error);
+      alert("Erro ao conectar com o servidor. Tente novamente.");
+    }
+  }
+
+   if (carregando) {
+    return (
+      <main className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+        <p className="text-gray-600 text-lg">Carregando...</p>
+      </main>
+    );
+  } 
 
   return (
     <main className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
@@ -51,14 +164,14 @@ function AtividadeFormPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Tipo</label>
+            <label className="block text-sm text-gray-600 mb-1">Tipo de Atividade</label>
             <input
-              {...register("tipo")}
-              placeholder="Digite o tipo"
+              {...register("tipoDeAtividade")}
+              placeholder="Digite o tipo de atividade"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
             />
-            {errors.tipo && (
-              <p className="text-red-500 text-xs mt-1">{errors.tipo.message}</p>
+            {errors.tipoDeAtividade && (
+              <p className="text-red-500 text-xs mt-1">{errors.tipoDeAtividade.message}</p>
             )}
           </div>
 
@@ -103,7 +216,7 @@ function AtividadeFormPage() {
                 {errors.dificuldade.message}
               </p>
             )}
-          </div>
+          </div>  
 
           <button
             type="submit"
@@ -112,7 +225,18 @@ function AtividadeFormPage() {
             {id ? "Atualizar" : "Cadastrar"}
           </button>
 
+          {id && (
+            <button
+              type="button"
+              onClick={deletarAtividade}
+              className="block w-11/12 mx-auto bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
+            >
+              Deletar
+            </button>
+          )}
+
           <button
+            onClick={() => navigate(-1)}
             type="button"
             className="block w-11/12 mx-auto border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition"
           >
