@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Menu, Plus, X } from "lucide-react";
 
 export function Home() {
   const [sidebarAberta, setSidebarAberta] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <main className="min-h-screen bg-gray-100 overflow-hidden">
@@ -42,6 +44,10 @@ export function Home() {
 
         <nav className="flex flex-col gap-3 p-4">
           <button
+            onClick={() => {
+              setSidebarAberta(false);
+              navigate("/atividades/ativas");
+            }}
             className="
               text-left px-4 py-3 rounded-xl
               bg-gray-100
@@ -56,6 +62,10 @@ export function Home() {
           </button>
 
           <button
+            onClick={() => { 
+              setSidebarAberta(false);
+              navigate("/atividades/concluidas");
+            }}
             className="
               text-left px-4 py-3 rounded-xl
               bg-gray-100
@@ -66,7 +76,7 @@ export function Home() {
               font-medium
             "
           >
-            Atividades concluidas
+            Atividades Concluídas
           </button>
         </nav>
       </aside>
@@ -74,16 +84,17 @@ export function Home() {
       {/* Conteúdo */}
       <section className="p-4 sm:p-6">
         <button
-  className="
-    w-full sm:w-auto
-    flex items-center justify-center sm:justify-start gap-3
-    bg-gray-200
-    px-4 sm:px-6 py-4
-    rounded-xl
-    hover:bg-gray-300
-    hover:shadow-md
-    hover:scale-[1.02]
-    transition-all duration-200
+          onClick={() => navigate("/atividades/new")}
+          className="
+            w-full sm:w-auto
+            flex items-center justify-center sm:justify-start gap-3
+            bg-gray-200
+            px-4 sm:px-6 py-4
+            rounded-xl
+            hover:bg-gray-300
+            hover:shadow-md
+            hover:scale-[1.02]
+            transition-all duration-200
     font-medium
   "
 >
