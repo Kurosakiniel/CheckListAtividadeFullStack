@@ -47,7 +47,7 @@ export function Login() {
 
       alert("Login realizado");
 
-      navigate("/atividades/new");
+      navigate("/atividades");
     } catch (error) {
       console.error(error);
       alert("Erro ao conectar com o servidor");
