@@ -5,6 +5,8 @@ import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import type { LoginData } from "../lib/types/types";
+import { useAuth } from "../contexts/AuthContext"; // ← removido espaço em "use Auth"
+import api from "../lib/types/api";
 
 const schema = yup.object({
   username: yup.string().required("Usuário obrigatório"),
@@ -14,43 +16,24 @@ const schema = yup.object({
 export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginData>({
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginData>({
     resolver: yupResolver(schema),
   });
 
   async function handleLogin(data: LoginData) {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/token/", {
-        method: "POST",
-        headers: {
-          "content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
+      // axios já lança erro automaticamente se der 401/400
+      // não precisa de res.ok, res.json(), nem localStorage manual
+      const res = await api.post("/token/", data); // ← barra no final
 
-      const json = await res.json();
+      login(res.data.access, res.data.refresh); // salva no contexto e localStorage
 
-      if (!res.ok) {
-        alert("Usuário ou senha inválidos");
-        console.error(json);
-        return;
-      }
+      navigate("/atividades"); // redireciona para a página de atividades
 
-      // salva os tokens
-      localStorage.setItem("access", json.access);
-      localStorage.setItem("refresh", json.refresh);
-
-      alert("Login realizado");
-
-      navigate("/atividades");
     } catch (error) {
-      console.error(error);
-      alert("Erro ao conectar com o servidor");
+      alert("Usuário ou senha inválidos");
     }
   }
 
@@ -62,7 +45,6 @@ export function Login() {
         </h1>
 
         <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
-          {/* USERNAME */}
           <div>
             <label className="block text-sm text-gray-600 mb-1">Usuário</label>
             <input
@@ -72,16 +54,12 @@ export function Login() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
             {errors.username && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.username.message}
-              </p>
+              <p className="text-red-500 text-xs mt-1">{errors.username.message}</p>
             )}
           </div>
 
-          {/* SENHA */}
           <div>
             <label className="block text-sm text-gray-600 mb-1">Senha</label>
-
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -89,7 +67,6 @@ export function Login() {
                 {...register("password")}
                 className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg"
               />
-
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -98,15 +75,11 @@ export function Login() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-
             {errors.password && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.password.message}
-              </p>
+              <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
             )}
           </div>
 
-          {/* BOTÃO */}
           <button
             type="submit"
             className="block w-11/12 mx-auto bg-gray-700 text-white py-2 rounded-lg hover:bg-gray-800 transition"
