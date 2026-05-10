@@ -13,22 +13,27 @@ export function ActivitiesActive() {
 
   useEffect(() => {
     async function buscarAtividades() {
-        try {
-        // Agora pedimos explicitamente apenas as NÃO concluídas para o Django
+      try {
+        // 1. Faz a chamada (o ?concluida=false continua sendo importante)
         const res = await api.get("/atividades/?concluida=false");
         
-        // Como o Django usa paginação, os dados estão em res.data.results
-        const dados = res.data.results || [];
+        // 2. A MUDANÇA ESTÁ AQUI:
+        // Como você tirou a paginação, os dados estão direto no 'res.data'
+        // Mas usamos essa lógica abaixo para ser "à prova de balas":
+        const dados = Array.isArray(res.data) 
+          ? res.data 
+          : (res.data.results || []);
         
         setAtividades(dados);
-        } catch (error) {
+      } catch (error) {
+        console.error("Erro ao buscar atividades:", error);
         setErro("Erro ao carregar dados.");
-        } finally {
+      } finally {
         setCarregando(false);
-        }
+      }
     }
     buscarAtividades();
-   }, []);
+  }, []);
    
   async function concluirAtividade(id: number) {
     try {

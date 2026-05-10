@@ -85,9 +85,3 @@ coverage/
 # =========================
 
 *.tsbuildinfo
-
-# Docker
-.env
-.env.*
-docker-compose.override.yml
-Dockerfile
