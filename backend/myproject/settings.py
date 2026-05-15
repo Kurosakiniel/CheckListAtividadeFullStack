@@ -12,28 +12,25 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 # / data/web/static
 # / data/web/media
 DATA_DIR = BASE_DIR.parent / 'data' / 'web'
-
+load_dotenv()
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'change-me')
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = bool(int(os.getenv('DEBUG', 0)))
 
-ALLOWED_HOSTS = [
-    h.strip() for h in os.getenv('ALLOWED_HOSTS', '').split(',')
-    if h.strip()
-]
-
-
+ALLOWED_HOSTS = [ ]
+CORS_ALLOW_ALL_ORIGINS = True
 # Application definition
 LOCAL_APPS = [
     "myapp", 
@@ -55,6 +52,8 @@ INSTALLED_APPS = [
 ] + LOCAL_APPS 
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -62,6 +61,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 ROOT_URLCONF = 'myproject.urls'
@@ -89,12 +93,12 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.getenv('POSTGRES_DB', 'postgres'),
-        'USER': os.getenv('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'postgres'),
-        'HOST': os.getenv('POSTGRES_HOST', 'db'),
-        'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        'ENGINE': os.getenv('DB_ENGINE'),
+        'NAME': os.getenv('POSTGRES_DB'),
+        'USER': os.getenv('POSTGRES_USER'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
+        'HOST': os.getenv('POSTGRES_HOST'),
+        'PORT': os.getenv('POSTGRES_PORT'),
     }
 }
 
@@ -146,8 +150,10 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+
+    # 🔥 AQUI está o correto
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 5,
+    'PAGE_SIZE': 10,
 }
 
 SPECTACULAR_SETTINGS = { #swagger
